@@ -22,6 +22,16 @@ fi
 
 export SCCACHE_WEBDAV_KEY_PREFIX="$_target_cpu"
 
+# Restart sccache with this configuration. If the remote cache is unusable,
+# fall back to a local disk cache rather than failing every compile.
+sccache --stop-server >/dev/null 2>&1 || true
+if ! sccache --start-server; then
+    echo "warn: sccache remote cache unavailable; using local disk cache" >&2
+    unset SCCACHE_GHA_ENABLED SCCACHE_GHA_VERSION
+    sccache --stop-server >/dev/null 2>&1 || true
+    sccache --start-server
+fi
+
 _error_code=0
 timeout -k 7m -s SIGTERM "${_remaining_time}s" \
     "$_root_dir/devutils/shared.sh" build chrome/installer/mac || _error_code=$?
